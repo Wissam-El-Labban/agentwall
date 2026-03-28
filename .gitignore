@@ -1,0 +1,5 @@
+#ignore all pycaches in the repository
+__pycache__/
+
+# ignore the virtual environemt (calling it security-env for now)
+security-env
