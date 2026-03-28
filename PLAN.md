@@ -822,13 +822,15 @@ Auto-detect which LLM agents are installed on the system and in the current proj
 
 ---
 
-## Phase 4: Web UI Dashboard *(depends on Phase 1-2, Phase 3 for agent display)*
+## Phase 4: Web UI Dashboard *(depends on Phase 1-2; agent display stubbed, wired when Phase 3 lands)*
 
 `agentfirewall ui` launches a local Flask web server for visual configuration management and live log monitoring. Flask is an **optional dependency** — core CLI works without it.
 
+> **Note:** Phase 4 is implemented before Phase 3. The `/api/agents` endpoint and dashboard agents panel are stubbed to return empty results. When Phase 3 (Agent Discovery) is implemented, wire `discover_all()` into the existing `/api/agents` route and the dashboard will auto-populate.
+
 ### Phase 4A: Flask App Factory & API Routes
 
-19. *depends on 1-16* — `create_app(config_dir: Path) -> Flask` app factory with the following routes:
+19. *depends on 1-13 (Phase 3 not required)* — `create_app(config_dir: Path) -> Flask` app factory with the following routes:
 
     | Method | Path | Purpose |
     |---|---|---|
@@ -840,7 +842,7 @@ Auto-detect which LLM agents are installed on the system and in the current proj
     | POST | `/api/preset` | Switch to a preset, persist |
     | GET | `/api/logs` | Recent log entries as JSON (with optional `?verdict=deny` filter) |
     | GET | `/api/logs/stream` | SSE endpoint — tails `firewall.log` in real-time |
-    | GET | `/api/agents` | Discovered agents from Phase 3 `discover_all()` |
+    | GET | `/api/agents` | Stubbed — returns empty list. Wire to `discover_all()` when Phase 3 is implemented |
 
 20. Config persistence flow:
     1. `PUT /api/config` receives JSON body with config fields
@@ -861,7 +863,7 @@ Auto-detect which LLM agents are installed on the system and in the current proj
 
 22. Four templates using Jinja2 (bundled with Flask):
     - **`base.html`** — shared layout: nav (Dashboard | Config | Logs), page title, flash messages, links to static CSS/JS
-    - **`dashboard.html`** — current mode badge (enforce/audit/off) with toggle buttons, stats cards (blocklist count, protected paths count, deny operations), discovered agents list (from Phase 3 `discover_all`), quick actions (switch preset, open config editor, start watcher)
+    - **`dashboard.html`** — current mode badge (enforce/audit/off) with toggle buttons, stats cards (blocklist count, protected paths count, deny operations), agents placeholder panel (populated when Phase 3 lands), quick actions (switch preset, open config editor, start watcher)
     - **`config.html`** — mode selector (radio: enforce/audit/off), sandbox settings (root path, allow_escape toggle), blocklist (editable list — add/remove entries), allowlist (editable list), protected paths (editable list with glob patterns), deny operations (checkboxes: delete, chmod, move_outside_sandbox, write), network (allowed hosts + deny targets as editable lists), logging settings (enabled toggle, level select), preset quick-switch dropdown, save button → `PUT /api/config`
     - **`logs.html`** — filter bar (verdict filter: all/allow/deny/warn, search box), log table (timestamp, action_type, target, verdict, rule, detail), auto-scroll with live SSE updates, pause/resume button
 
@@ -893,7 +895,7 @@ Auto-detect which LLM agents are installed on the system and in the current proj
 - `src/agentfirewall/ui/templates/logs.html` — log viewer
 - `src/agentfirewall/ui/static/style.css` — dashboard styles
 - `src/agentfirewall/ui/static/app.js` — client-side interactivity (vanilla JS)
-- `tests/test_ui.py` — ~12-15 tests using Flask test client: pages return 200, `GET /api/config` returns valid JSON, `PUT /api/config` persists mode change to YAML, `POST /api/preset` switches preset, `GET /api/logs` returns filterable entries, `GET /api/agents` returns list
+- `tests/test_ui.py` — ~12-15 tests using Flask test client: pages return 200, `GET /api/config` returns valid JSON, `PUT /api/config` persists mode change to YAML, `POST /api/preset` switches preset, `GET /api/logs` returns filterable entries, `GET /api/agents` returns empty list (stubbed)
 
 **Files to modify:**
 - `src/agentfirewall/cli.py` — add `ui` command
