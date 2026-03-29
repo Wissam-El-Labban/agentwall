@@ -11,7 +11,10 @@ GUARD_END = "# <<< agentfirewall <<<"
 _BASH_HOOK = """\
 # >>> agentfirewall >>>
 shopt -s extdebug
+__agentfirewall_ready=0
 __agentfirewall_preexec() {
+    # Skip during shell startup — only activate after first prompt
+    [ "$__agentfirewall_ready" -eq 0 ] && return 0
     [[ "$BASH_COMMAND" == agentfirewall* ]] && return 0
     [[ "$BASH_COMMAND" == agentwall* ]] && return 0
     local __af_result
@@ -25,6 +28,7 @@ __agentfirewall_preexec() {
     fi
 }
 trap '__agentfirewall_preexec' DEBUG
+PROMPT_COMMAND="__agentfirewall_ready=1;${PROMPT_COMMAND:-}"
 # <<< agentfirewall <<<
 """
 
