@@ -273,7 +273,10 @@ def sandbox(command: tuple[str, ...], mountpoint: str | None) -> None:
 @click.option("--shell", type=click.Choice(["bash", "zsh"]), default=None,
               help="Target shell (auto-detected if omitted).")
 @click.option("--force", is_flag=True, help="Overwrite existing .agentfirewall/ directory.")
-def protect(preset: str, shell: str | None, force: bool) -> None:
+@click.option("--sandbox", is_flag=True, help="Also start the FUSE sandbox.")
+@click.option("--ui", is_flag=True, help="Also start the web UI dashboard.")
+@click.option("--ui-port", default=5000, help="Port for the UI server (default: 5000).")
+def protect(preset: str, shell: str | None, force: bool, sandbox: bool, ui: bool, ui_port: int) -> None:
     """One command to initialize, install hooks, and start the watcher."""
     from agentfirewall.hooks.shell import install_hook
     from agentfirewall.presets import get_preset
@@ -319,7 +322,42 @@ def protect(preset: str, shell: str | None, force: bool) -> None:
     pid_file.write_text(str(proc.pid), encoding="utf-8")
     click.echo(f"✅ Watcher running in background (PID: {proc.pid})")
 
-    # Step 4: self-test
+    # Step 4: start FUSE sandbox in background (optional)
+    if sandbox:
+        try:
+            sandbox_proc = subprocess.Popen(
+                [sys.executable, "-m", "agentfirewall.cli", "sandbox"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=str(Path.cwd()),
+            )
+            sandbox_pid_file = target_dir / "sandbox.pid"
+            sandbox_pid_file.write_text(str(sandbox_proc.pid), encoding="utf-8")
+            click.echo(f"✅ FUSE sandbox running in background (PID: {sandbox_proc.pid})")
+        except Exception as e:
+            click.echo(f"⚠️  FUSE sandbox failed to start: {e}")
+
+    # Step 5: start UI in background (optional)
+    if ui:
+        try:
+            from agentfirewall.ui.app import create_app  # noqa: F401
+            ui_proc = subprocess.Popen(
+                [sys.executable, "-m", "agentfirewall.cli", "ui", "--host", "0.0.0.0", "--port", str(ui_port), "--no-open"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=str(Path.cwd()),
+            )
+            ui_pid_file = target_dir / "ui.pid"
+            ui_pid_file.write_text(str(ui_proc.pid), encoding="utf-8")
+            click.echo(f"✅ UI dashboard running at http://localhost:{ui_port} (PID: {ui_proc.pid})")
+        except ImportError:
+            click.echo("⚠️  Flask not installed. Run: pip install flask")
+        except Exception as e:
+            click.echo(f"⚠️  UI failed to start: {e}")
+
+    # Step 6: self-test
     from agentfirewall.audit import AuditLogger
     audit = AuditLogger(config.logging, target_dir)
     engine = Engine(config, audit=audit)
@@ -331,7 +369,7 @@ def protect(preset: str, shell: str | None, force: bool) -> None:
 
     click.echo("🛡  Protection active")
 
-    # Step 5: source reminder
+    # Step 7: source reminder
     from agentfirewall.hooks.shell import detect_shell
     shell_name = shell or detect_shell()
     rc_file = f"~/.{shell_name}rc"
@@ -392,11 +430,33 @@ def unprotect(shell: str | None, remove_config: bool) -> None:
     else:
         click.echo("⚠️  No watcher PID file found")
 
-    # Step 2: uninstall shell hooks
+    # Step 2: stop sandbox
+    sandbox_pid_file = target_dir / "sandbox.pid"
+    if sandbox_pid_file.exists():
+        try:
+            pid = int(sandbox_pid_file.read_text(encoding="utf-8").strip())
+            os.kill(pid, signal.SIGTERM)
+            click.echo(f"✅ Sandbox stopped (PID: {pid})")
+        except (ProcessLookupError, ValueError):
+            click.echo("⚠️  Sandbox process not found (may have already stopped)")
+        sandbox_pid_file.unlink(missing_ok=True)
+
+    # Step 3: stop UI
+    ui_pid_file = target_dir / "ui.pid"
+    if ui_pid_file.exists():
+        try:
+            pid = int(ui_pid_file.read_text(encoding="utf-8").strip())
+            os.kill(pid, signal.SIGTERM)
+            click.echo(f"✅ UI stopped (PID: {pid})")
+        except (ProcessLookupError, ValueError):
+            click.echo("⚠️  UI process not found (may have already stopped)")
+        ui_pid_file.unlink(missing_ok=True)
+
+    # Step 4: uninstall shell hooks
     removed = uninstall_hook(shell)
     click.echo("✅ Shell hooks removed." if removed else "⚠️  No shell hooks found.")
 
-    # Step 3: optionally remove config
+    # Step 5: optionally remove config
     if remove_config and target_dir.exists():
         shutil.rmtree(target_dir)
         click.echo(f"✅ Removed {DOTFILE_NAME}/")
