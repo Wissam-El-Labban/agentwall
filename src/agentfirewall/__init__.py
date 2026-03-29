@@ -1,3 +1,3 @@
 """agentfirewall — a dotfile-driven firewall for LLM agent tool calls."""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentwall"
-version = "0.2.0"
+version = "0.2.1"
 description = "A dotfile-driven firewall that protects the OS from destructive LLM agent tool calls"
 readme = "docs/README.md"
 requires-python = ">=3.10"
