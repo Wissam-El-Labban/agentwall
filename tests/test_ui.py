@@ -391,3 +391,132 @@ class TestAPIHooks:
             content_type="application/json",
         )
         assert resp.status_code == 400
+
+
+# ── Page: analytics ──────────────────────────────────────────
+
+
+class TestAnalyticsPage:
+    def test_analytics_page_returns_200(self, client):
+        resp = client.get("/analytics")
+        assert resp.status_code == 200
+        assert b"Analytics" in resp.data
+
+    def test_analytics_page_has_chart_elements(self, client):
+        resp = client.get("/analytics")
+        assert b"chart-timeline" in resp.data
+        assert b"chart-rules" in resp.data
+        assert b"chart-targets" in resp.data
+
+
+# ── API: analytics ───────────────────────────────────────────
+
+
+class TestAPIAnalytics:
+    def test_analytics_empty_logs(self, client):
+        resp = client.get("/api/logs/analytics")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total_events"] == 0
+        assert data["total_deny"] == 0
+        assert data["total_warn"] == 0
+        assert data["deny_rate"] == 0
+        assert data["top_rules"] == []
+        assert data["top_targets"] == []
+
+    def test_analytics_with_log_data(self, client, agentfirewall_dir):
+        log_dir = agentfirewall_dir / "logs"
+        log_dir.mkdir(exist_ok=True)
+        log_file = log_dir / "firewall.log"
+        entries = [
+            {"timestamp": "2026-03-29T12:00:00+00:00", "action_type": "command",
+             "target": "rm -rf /", "verdict": "deny",
+             "rule": "commands.blocklist[0]", "detail": "blocked"},
+            {"timestamp": "2026-03-29T12:01:00+00:00", "action_type": "command",
+             "target": "rm -rf /", "verdict": "deny",
+             "rule": "commands.blocklist[0]", "detail": "blocked"},
+            {"timestamp": "2026-03-29T12:02:00+00:00", "action_type": "file",
+             "target": ".env", "verdict": "deny",
+             "rule": "filesystem.protected_paths:.env", "detail": "blocked"},
+            {"timestamp": "2026-03-29T12:03:00+00:00", "action_type": "command",
+             "target": "ls", "verdict": "allow",
+             "rule": "default", "detail": "ok"},
+            {"timestamp": "2026-03-29T12:04:00+00:00", "action_type": "network",
+             "target": "evil.com", "verdict": "warn",
+             "rule": "network.allowed_hosts", "detail": "audit"},
+        ]
+        log_file.write_text(
+            "\n".join(json.dumps(e) for e in entries) + "\n",
+            encoding="utf-8",
+        )
+
+        resp = client.get("/api/logs/analytics?range=all")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total_events"] == 5
+        assert data["total_deny"] == 3
+        assert data["total_warn"] == 1
+        assert data["deny_rate"] == 60.0
+
+        # Top rules should have blocklist[0] with count 2
+        assert len(data["top_rules"]) > 0
+        assert data["top_rules"][0]["rule"] == "commands.blocklist[0]"
+        assert data["top_rules"][0]["count"] == 2
+
+        # Top targets should have rm -rf / with count 2
+        assert len(data["top_targets"]) > 0
+        assert data["top_targets"][0]["target"] == "rm -rf /"
+        assert data["top_targets"][0]["count"] == 2
+
+        # Verdict counts
+        assert data["verdict_counts"]["deny"] == 3
+        assert data["verdict_counts"]["allow"] == 1
+        assert data["verdict_counts"]["warn"] == 1
+
+        # Action type counts
+        assert data["action_type_counts"]["command"] == 3
+        assert data["action_type_counts"]["file"] == 1
+        assert data["action_type_counts"]["network"] == 1
+
+        # Verdicts over time has data
+        assert len(data["verdicts_over_time"]["labels"]) > 0
+
+    def test_analytics_time_range_filter(self, client, agentfirewall_dir):
+        log_dir = agentfirewall_dir / "logs"
+        log_dir.mkdir(exist_ok=True)
+        log_file = log_dir / "firewall.log"
+        entries = [
+            {"timestamp": "2020-01-01T01:00:00+00:00", "action_type": "command",
+             "target": "old cmd", "verdict": "deny",
+             "rule": "blocklist", "detail": "old"},
+            {"timestamp": "2099-12-31T23:00:00+00:00", "action_type": "command",
+             "target": "future cmd", "verdict": "deny",
+             "rule": "blocklist", "detail": "future"},
+        ]
+        log_file.write_text(
+            "\n".join(json.dumps(e) for e in entries) + "\n",
+            encoding="utf-8",
+        )
+
+        # "1h" range should filter out the 2020 entry but include the 2099 entry
+        resp = client.get("/api/logs/analytics?range=1h")
+        data = resp.get_json()
+        assert data["total_events"] == 1
+        assert data["top_targets"][0]["target"] == "future cmd"
+
+    def test_analytics_all_range_includes_everything(self, client, agentfirewall_dir):
+        log_dir = agentfirewall_dir / "logs"
+        log_dir.mkdir(exist_ok=True)
+        log_file = log_dir / "firewall.log"
+        entries = [
+            {"timestamp": "2020-01-01T01:00:00+00:00", "action_type": "command",
+             "target": "old", "verdict": "deny", "rule": "r", "detail": "d"},
+        ]
+        log_file.write_text(
+            "\n".join(json.dumps(e) for e in entries) + "\n",
+            encoding="utf-8",
+        )
+
+        resp = client.get("/api/logs/analytics?range=all")
+        data = resp.get_json()
+        assert data["total_events"] == 1

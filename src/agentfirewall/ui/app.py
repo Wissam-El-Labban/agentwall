@@ -8,6 +8,8 @@ import signal
 import subprocess
 import sys
 import time
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Generator
 
@@ -84,6 +86,10 @@ def create_app(config_dir: Path | None = None) -> Flask:
     @app.route("/logs")
     def logs_page():
         return render_template("logs.html")
+
+    @app.route("/analytics")
+    def analytics_page():
+        return render_template("analytics.html")
 
     # ── API routes ──────────────────────────────────────────
 
@@ -332,6 +338,92 @@ def create_app(config_dir: Path | None = None) -> Flask:
             return jsonify({"installed": not removed, "removed": removed})
 
         return jsonify({"error": "action must be 'install' or 'uninstall'"}), 400
+
+    @app.route("/api/logs/analytics", methods=["GET"])
+    def api_logs_analytics():
+        log_file = _log_path()
+        range_param = request.args.get("range", "all")
+
+        # Parse time range
+        now = datetime.now(timezone.utc)
+        cutoff = None
+        range_hours = {"1h": 1, "6h": 6, "24h": 24, "7d": 168}
+        if range_param in range_hours:
+            cutoff = now - timedelta(hours=range_hours[range_param])
+
+        # Read and parse log entries
+        entries: list[dict] = []
+        if log_file.is_file():
+            for line in log_file.read_text(encoding="utf-8").strip().splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if cutoff and entry.get("timestamp"):
+                    try:
+                        ts = datetime.fromisoformat(entry["timestamp"])
+                        if ts < cutoff:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+                entries.append(entry)
+
+        # Aggregate metrics
+        verdict_counts = Counter(e.get("verdict", "unknown") for e in entries)
+        action_type_counts = Counter(e.get("action_type", "unknown") for e in entries)
+
+        # Top rules (deny + warn only)
+        deny_warn = [e for e in entries if e.get("verdict") in ("deny", "warn")]
+        rule_counts = Counter(e.get("rule", "unknown") for e in deny_warn)
+        top_rules = [{
+            "rule": rule, "count": count
+        } for rule, count in rule_counts.most_common(10)]
+
+        # Top blocked targets (deny + warn only)
+        target_counts = Counter(e.get("target", "unknown") for e in deny_warn)
+        top_targets = [{
+            "target": target, "count": count
+        } for target, count in target_counts.most_common(10)]
+
+        # Verdicts over time (bucket by hour)
+        time_buckets: dict[str, dict[str, int]] = {}
+        for e in entries:
+            ts_str = e.get("timestamp", "")
+            try:
+                ts = datetime.fromisoformat(ts_str)
+                bucket = ts.strftime("%Y-%m-%d %H:00")
+            except (ValueError, TypeError):
+                continue
+            if bucket not in time_buckets:
+                time_buckets[bucket] = {"allow": 0, "deny": 0, "warn": 0}
+            v = e.get("verdict", "")
+            if v in time_buckets[bucket]:
+                time_buckets[bucket][v] += 1
+        sorted_buckets = sorted(time_buckets.keys())
+        verdicts_over_time = {
+            "labels": sorted_buckets,
+            "allow": [time_buckets[b]["allow"] for b in sorted_buckets],
+            "deny": [time_buckets[b]["deny"] for b in sorted_buckets],
+            "warn": [time_buckets[b]["warn"] for b in sorted_buckets],
+        }
+
+        total = len(entries)
+        total_deny = verdict_counts.get("deny", 0)
+        total_warn = verdict_counts.get("warn", 0)
+
+        return jsonify({
+            "total_events": total,
+            "total_deny": total_deny,
+            "total_warn": total_warn,
+            "deny_rate": round(total_deny / total * 100, 1) if total else 0,
+            "verdict_counts": dict(verdict_counts),
+            "action_type_counts": dict(action_type_counts),
+            "top_rules": top_rules,
+            "top_targets": top_targets,
+            "verdicts_over_time": verdicts_over_time,
+        })
 
     return app
 

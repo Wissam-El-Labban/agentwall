@@ -507,6 +507,82 @@ select {
 
 .agent-table tr:last-child td { border-bottom: none; }
 
+/* ── Analytics page ──────────────────────────────────────── */
+
+.analytics-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+.analytics-controls label { font-size: 0.9rem; }
+
+.analytics-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+.summary-deny .summary-value  { color: var(--danger); }
+.summary-warn .summary-value  { color: var(--badge-warn); }
+.summary-rate .summary-value  { color: var(--text); }
+
+.summary-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+}
+.chart-card h2 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.chart-wide {
+    grid-column: 1 / -1;
+}
+
+.chart-wrap {
+    position: relative;
+    height: 260px;
+}
+
+.chart-wrap-bar {
+    height: 300px;
+}
+
+.chart-wrap-donut {
+    height: 240px;
+}
+
 /* ── Responsive ──────────────────────────────────────────── */
 
 @media (max-width: 600px) {
@@ -515,6 +591,8 @@ select {
     .stats-grid { grid-template-columns: 1fr; }
     .status-grid { grid-template-columns: 1fr; }
     .actions-grid { grid-template-columns: 1fr; }
+    .analytics-grid { grid-template-columns: 1fr; }
+    .analytics-summary { grid-template-columns: repeat(2, 1fr); }
     .log-controls { flex-direction: column; align-items: stretch; }
     .log-filters { flex-wrap: wrap; }
     .tester-input-row { flex-direction: column; }
