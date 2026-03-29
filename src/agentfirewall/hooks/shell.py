@@ -17,12 +17,12 @@ __agentfirewall_preexec() {
     [[ "$BASH_COMMAND" == agentwall* ]] && return 0
     [[ "$BASH_COMMAND" == __agentfirewall_* ]] && return 0
     agentfirewall check "$BASH_COMMAND" > /dev/null 2>&1
-    local __af_exit=$?
-    [ $__af_exit -eq 2 ] && return 0
-    if [ $__af_exit -ne 0 ]; then
+    local rc=$?
+    if [ $rc -eq 1 ]; then
         echo "[agentfirewall] BLOCKED: $BASH_COMMAND" >&2
         return 1
     fi
+    return 0
 }
 shopt -s extdebug
 trap '__agentfirewall_preexec' DEBUG
