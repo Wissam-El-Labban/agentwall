@@ -3,15 +3,18 @@
     "use strict";
 
     var COLORS = {
-        allow: "#2a9d8f",
-        deny: "#e63946",
-        warn: "#e9a100",
-        primary: "#4361ee",
-        muted: "#6c757d",
-        command: "#4361ee",
-        file: "#2a9d8f",
-        network: "#e9c46a",
+        allow: "#51cf66",
+        deny: "#ff6b6b",
+        warn: "#fcc419",
+        primary: "#6c5ce7",
+        muted: "#6b7280",
+        command: "#6c5ce7",
+        file: "#00cec9",
+        network: "#fcc419",
     };
+
+    var CHART_TEXT = "#eaedf3";
+    var CHART_GRID = "rgba(255, 255, 255, 0.05)";
 
     var charts = {};
 
@@ -94,9 +97,10 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: "index", intersect: false },
-                plugins: { legend: { position: "bottom" } },
+                plugins: { legend: { position: "bottom", labels: { color: CHART_TEXT } } },
                 scales: {
-                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    y: { beginAtZero: true, ticks: { precision: 0, color: CHART_TEXT }, grid: { color: CHART_GRID } },
+                    x: { ticks: { color: CHART_TEXT }, grid: { color: CHART_GRID } },
                 },
             },
         });
@@ -166,7 +170,8 @@
                 indexAxis: "y",
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { beginAtZero: true, ticks: { precision: 0, color: CHART_TEXT }, grid: { color: CHART_GRID } },
+                    y: { ticks: { color: CHART_TEXT }, grid: { color: CHART_GRID } },
                 },
             },
         });
@@ -190,7 +195,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: "bottom" } },
+                plugins: { legend: { position: "bottom", labels: { color: CHART_TEXT } } },
             },
         });
     }
@@ -213,7 +218,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: "bottom" } },
+                plugins: { legend: { position: "bottom", labels: { color: CHART_TEXT } } },
             },
         });
     }
