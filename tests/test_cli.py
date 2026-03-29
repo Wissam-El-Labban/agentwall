@@ -72,7 +72,7 @@ class TestCheck:
     def test_check_no_config(self, tmp_path: Path):
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(main, ["check", "ls"])
-            assert result.exit_code == 1
+            assert result.exit_code == 2
             assert "No .agentfirewall/" in result.output
 
 

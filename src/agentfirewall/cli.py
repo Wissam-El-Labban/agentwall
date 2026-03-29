@@ -73,7 +73,7 @@ def check(command_str: str) -> None:
     engine = _load_engine()
     if engine is None:
         click.echo(f"No {DOTFILE_NAME}/ found in current or parent directories.", err=True)
-        sys.exit(1)
+        sys.exit(2)
 
     result = engine.evaluate_command(command_str)
     symbol = {"allow": "✅", "deny": "🚫", "warn": "⚠️ "}[result.verdict.value]

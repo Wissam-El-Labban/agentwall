@@ -14,8 +14,12 @@ shopt -s extdebug
 __agentfirewall_preexec() {
     [[ "$BASH_COMMAND" == agentfirewall* ]] && return 0
     [[ "$BASH_COMMAND" == agentwall* ]] && return 0
-    agentfirewall check "$BASH_COMMAND" > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
+    local __af_result
+    __af_result=$(agentfirewall check "$BASH_COMMAND" 2>&1)
+    local __af_exit=$?
+    # Exit code 2 = no config found (not in a protected directory) — allow
+    [ $__af_exit -eq 2 ] && return 0
+    if [ $__af_exit -ne 0 ]; then
         echo "[agentfirewall] BLOCKED: $BASH_COMMAND" >&2
         return 1
     fi
@@ -29,8 +33,12 @@ _ZSH_HOOK = """\
 __agentfirewall_preexec() {
     [[ "$1" == agentfirewall* ]] && return 0
     [[ "$1" == agentwall* ]] && return 0
-    agentfirewall check "$1" > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
+    local __af_result
+    __af_result=$(agentfirewall check "$1" 2>&1)
+    local __af_exit=$?
+    # Exit code 2 = no config found (not in a protected directory) — allow
+    [ $__af_exit -eq 2 ] && return 0
+    if [ $__af_exit -ne 0 ]; then
         echo "[agentfirewall] BLOCKED: $1" >&2
         kill -INT $$
     fi
