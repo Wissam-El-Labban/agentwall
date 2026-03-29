@@ -340,6 +340,35 @@ def protect(preset: str, shell: str | None, force: bool) -> None:
 
 
 @main.command()
+@click.option("--port", default=8741, help="Port to run the UI server on.")
+@click.option("--host", default="127.0.0.1", help="Host to bind the UI server to.")
+@click.option("--no-open", is_flag=True, help="Don't auto-open browser.")
+def ui(port: int, host: str, no_open: bool) -> None:
+    """Launch the web UI dashboard."""
+    try:
+        from agentfirewall.ui.app import create_app
+    except ImportError:
+        click.echo("Flask required. Install with: pip install agentfirewall[ui]", err=True)
+        sys.exit(1)
+
+    config_path = find_config()
+    if config_path is None:
+        click.echo(f"No {DOTFILE_NAME}/ found in current or parent directories.", err=True)
+        sys.exit(1)
+
+    app = create_app(config_dir=config_path.parent)
+    url = f"http://{host}:{port}"
+    click.echo(f"Starting agentfirewall UI at {url}")
+
+    if not no_open:
+        import webbrowser
+        import threading
+        threading.Timer(1.0, webbrowser.open, args=[url]).start()
+
+    app.run(host=host, port=port, debug=False)
+
+
+@main.command()
 @click.option("--shell", type=click.Choice(["bash", "zsh"]), default=None,
               help="Target shell (auto-detected if omitted).")
 @click.option("--remove-config", is_flag=True, help="Also remove the .agentfirewall/ directory.")

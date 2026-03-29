@@ -42,6 +42,9 @@ dev = [
 sandbox = [
     "fusepy>=3.0",
 ]
+ui = [
+    "flask>=3.0",
+]
 
 [project.scripts]
 agentfirewall = "agentfirewall.cli:main"

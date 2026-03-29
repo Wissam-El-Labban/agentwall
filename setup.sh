@@ -107,11 +107,11 @@ echo "==> Installing Python dependencies..."
 pip install --upgrade pip --quiet
 
 if [[ "$INSTALL_FUSE" == true ]]; then
-    pip install -e ".[dev,sandbox]" --quiet
-    echo "    Installed: core + dev + sandbox (fusepy)"
+    pip install -e ".[dev,sandbox,ui]" --quiet
+    echo "    Installed: core + dev + sandbox (fusepy) + ui (Flask)"
 else
-    pip install -e ".[dev]" --quiet
-    echo "    Installed: core + dev (no FUSE sandbox)"
+    pip install -e ".[dev,ui]" --quiet
+    echo "    Installed: core + dev + ui (Flask) (no FUSE sandbox)"
 fi
 
 # ── Verify ─────────────────────────────────────────────────────

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<section class="mode-section">
+    <h2>Firewall Mode</h2>
+    <div class="mode-toggle" id="mode-toggle">
+        <button class="mode-btn {% if config.mode.value == 'off' %}active{% endif %}" data-mode="off">Off</button>
+        <button class="mode-btn {% if config.mode.value == 'audit' %}active{% endif %}" data-mode="audit">Audit</button>
+        <button class="mode-btn {% if config.mode.value == 'enforce' %}active{% endif %}" data-mode="enforce">Enforce</button>
+    </div>
+    <p class="mode-description" id="mode-description">
+        {% if config.mode.value == 'off' %}
+            Firewall is <strong>disabled</strong>. All actions are allowed.
+        {% elif config.mode.value == 'audit' %}
+            Firewall is in <strong>audit</strong> mode. Violations are logged but not blocked.
+        {% else %}
+            Firewall is in <strong>enforce</strong> mode. Violations are blocked.
+        {% endif %}
+    </p>
+</section>
+
+<section class="stats-section">
+    <h2>Protection Summary</h2>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.blocklist_count }}</div>
+            <div class="stat-label">Blocked Commands</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.protected_paths_count }}</div>
+            <div class="stat-label">Protected Paths</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.deny_operations|length }}</div>
+            <div class="stat-label">Deny Operations</div>
+        </div>
+    </div>
+</section>
+
+<section class="agents-section">
+    <h2>Detected Agents</h2>
+    <div id="agents-panel">
+        <p class="muted">Agent discovery not yet available. Install the discovery module and run <code>agentfirewall scan</code>.</p>
+    </div>
+</section>
+
+<section class="actions-section">
+    <h2>Quick Actions</h2>
+    <div class="actions-grid">
+        <div class="action-card">
+            <h3>Switch Preset</h3>
+            <select id="preset-select">
+                <option value="">Select preset...</option>
+                <option value="standard">Standard</option>
+                <option value="strict">Strict</option>
+                <option value="permissive">Permissive</option>
+            </select>
+            <button id="apply-preset-btn" class="btn">Apply</button>
+        </div>
+        <div class="action-card">
+            <h3>Quick Links</h3>
+            <a href="{{ url_for('config_page') }}" class="btn">Edit Config</a>
+            <a href="{{ url_for('logs_page') }}" class="btn">View Logs</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Config{% endblock %}
+
+{% block content %}
+<h1>Configuration</h1>
+<form id="config-form">
+    <section class="config-section">
+        <h2>Mode</h2>
+        <div class="radio-group">
+            <label><input type="radio" name="mode" value="off" {% if config.mode.value == 'off' %}checked{% endif %}> Off</label>
+            <label><input type="radio" name="mode" value="audit" {% if config.mode.value == 'audit' %}checked{% endif %}> Audit</label>
+            <label><input type="radio" name="mode" value="enforce" {% if config.mode.value == 'enforce' %}checked{% endif %}> Enforce</label>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Sandbox</h2>
+        <div class="form-row">
+            <label for="sandbox-root">Root path</label>
+            <input type="text" id="sandbox-root" name="sandbox_root" value="{{ config.sandbox.root }}">
+        </div>
+        <div class="form-row">
+            <label>
+                <input type="checkbox" id="sandbox-escape" name="sandbox_allow_escape"
+                       {% if config.sandbox.allow_escape %}checked{% endif %}>
+                Allow sandbox escape
+            </label>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Command Blocklist</h2>
+        <div class="editable-list" id="blocklist" data-field="commands.blocklist">
+            {% for cmd in config.commands.blocklist %}
+            <div class="list-item">
+                <input type="text" value="{{ cmd }}" readonly>
+                <button type="button" class="btn btn-sm btn-danger remove-item">&#x2715;</button>
+            </div>
+            {% endfor %}
+            <div class="list-add">
+                <input type="text" placeholder="Add pattern..." class="add-input">
+                <button type="button" class="btn btn-sm add-item">Add</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Command Allowlist</h2>
+        <p class="muted">If non-empty, only these commands are allowed.</p>
+        <div class="editable-list" id="allowlist" data-field="commands.allowlist">
+            {% for cmd in config.commands.allowlist %}
+            <div class="list-item">
+                <input type="text" value="{{ cmd }}" readonly>
+                <button type="button" class="btn btn-sm btn-danger remove-item">&#x2715;</button>
+            </div>
+            {% endfor %}
+            <div class="list-add">
+                <input type="text" placeholder="Add pattern..." class="add-input">
+                <button type="button" class="btn btn-sm add-item">Add</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Protected Paths</h2>
+        <div class="editable-list" id="protected-paths" data-field="filesystem.protected_paths">
+            {% for p in config.filesystem.protected_paths %}
+            <div class="list-item">
+                <input type="text" value="{{ p }}" readonly>
+                <button type="button" class="btn btn-sm btn-danger remove-item">&#x2715;</button>
+            </div>
+            {% endfor %}
+            <div class="list-add">
+                <input type="text" placeholder="Add glob pattern..." class="add-input">
+                <button type="button" class="btn btn-sm add-item">Add</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Deny Operations</h2>
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="deny_op" value="delete"
+                {% if 'delete' in config.filesystem.deny_operations|map(attribute='value')|list %}checked{% endif %}>
+                Delete</label>
+            <label><input type="checkbox" name="deny_op" value="chmod"
+                {% if 'chmod' in config.filesystem.deny_operations|map(attribute='value')|list %}checked{% endif %}>
+                Chmod</label>
+            <label><input type="checkbox" name="deny_op" value="move_outside_sandbox"
+                {% if 'move_outside_sandbox' in config.filesystem.deny_operations|map(attribute='value')|list %}checked{% endif %}>
+                Move Outside Sandbox</label>
+            <label><input type="checkbox" name="deny_op" value="write"
+                {% if 'write' in config.filesystem.deny_operations|map(attribute='value')|list %}checked{% endif %}>
+                Write</label>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Network — Allowed Hosts</h2>
+        <div class="editable-list" id="allowed-hosts" data-field="network.allowed_hosts">
+            {% for h in config.network.allowed_hosts %}
+            <div class="list-item">
+                <input type="text" value="{{ h }}" readonly>
+                <button type="button" class="btn btn-sm btn-danger remove-item">&#x2715;</button>
+            </div>
+            {% endfor %}
+            <div class="list-add">
+                <input type="text" placeholder="Add host..." class="add-input">
+                <button type="button" class="btn btn-sm add-item">Add</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Network — Denied Targets</h2>
+        <div class="editable-list" id="deny-targets" data-field="network.deny_egress_to">
+            {% for t in config.network.deny_egress_to %}
+            <div class="list-item">
+                <input type="text" value="{{ t }}" readonly>
+                <button type="button" class="btn btn-sm btn-danger remove-item">&#x2715;</button>
+            </div>
+            {% endfor %}
+            <div class="list-add">
+                <input type="text" placeholder="Add target..." class="add-input">
+                <button type="button" class="btn btn-sm add-item">Add</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Logging</h2>
+        <div class="form-row">
+            <label>
+                <input type="checkbox" id="logging-enabled" name="logging_enabled"
+                       {% if config.logging.enabled %}checked{% endif %}>
+                Enable logging
+            </label>
+        </div>
+        <div class="form-row">
+            <label for="logging-level">Log level</label>
+            <select id="logging-level" name="logging_level">
+                <option value="debug" {% if config.logging.level == 'debug' %}selected{% endif %}>Debug</option>
+                <option value="info" {% if config.logging.level == 'info' %}selected{% endif %}>Info</option>
+                <option value="warn" {% if config.logging.level == 'warn' %}selected{% endif %}>Warning</option>
+                <option value="error" {% if config.logging.level == 'error' %}selected{% endif %}>Error</option>
+            </select>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2>Preset Quick-Switch</h2>
+        <select id="config-preset-select">
+            <option value="">Switch to preset...</option>
+            <option value="standard">Standard</option>
+            <option value="strict">Strict</option>
+            <option value="permissive">Permissive</option>
+        </select>
+        <button type="button" id="config-apply-preset" class="btn">Apply Preset</button>
+    </section>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="save-config-btn">Save Configuration</button>
+        <span id="save-status" class="save-status"></span>
+    </div>
+</form>
+{% endblock %}

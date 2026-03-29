@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+<h1>Audit Logs</h1>
+
+<div class="log-controls">
+    <div class="log-filters">
+        <label for="verdict-filter">Verdict:</label>
+        <select id="verdict-filter">
+            <option value="">All</option>
+            <option value="allow">Allow</option>
+            <option value="deny">Deny</option>
+            <option value="warn">Warn</option>
+        </select>
+        <input type="text" id="log-search" placeholder="Search logs...">
+    </div>
+    <div class="log-actions">
+        <button id="pause-btn" class="btn">Pause</button>
+        <button id="clear-btn" class="btn">Clear Display</button>
+    </div>
+</div>
+
+<div class="log-table-wrap">
+    <table class="log-table" id="log-table">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Type</th>
+                <th>Target</th>
+                <th>Verdict</th>
+                <th>Rule</th>
+                <th>Detail</th>
+            </tr>
+        </thead>
+        <tbody id="log-body">
+        </tbody>
+    </table>
+</div>
+
+<div id="log-status" class="log-status">Connecting to log stream...</div>
+{% endblock %}
