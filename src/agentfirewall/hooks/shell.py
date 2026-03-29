@@ -19,7 +19,6 @@ __agentfirewall_preexec() {
     local __af_result
     __af_result=$(agentfirewall check "$BASH_COMMAND" 2>&1)
     local __af_exit=$?
-    # Exit code 2 = no config found (not in a protected directory) — allow
     [ $__af_exit -eq 2 ] && return 0
     if [ $__af_exit -ne 0 ]; then
         echo "[agentfirewall] BLOCKED: $BASH_COMMAND" >&2
@@ -29,8 +28,11 @@ __agentfirewall_preexec() {
 __agentfirewall_activate() {
     shopt -s extdebug
     trap '__agentfirewall_preexec' DEBUG
+    # Only run once, then remove self from PROMPT_COMMAND
+    PROMPT_COMMAND="${PROMPT_COMMAND/__agentfirewall_activate;/}"
 }
-PROMPT_COMMAND="__agentfirewall_activate;${PROMPT_COMMAND:-}"
+# Defer activation: append to PROMPT_COMMAND so it runs after all init (pyenv, etc.)
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}__agentfirewall_activate;"
 # <<< agentfirewall <<<
 """
 
