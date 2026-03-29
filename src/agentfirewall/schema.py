@@ -22,6 +22,7 @@ class DenyOperation(Enum):
     CHMOD = "chmod"
     MOVE_OUTSIDE_SANDBOX = "move_outside_sandbox"
     WRITE = "write"
+    CREATE = "create"
 
 
 @dataclass
@@ -65,6 +66,7 @@ class LoggingConfig:
     enabled: bool = True
     file: str = "logs/firewall.log"
     level: str = "warn"
+    log_all_activity: bool = False
 
 
 @dataclass
@@ -143,6 +145,7 @@ def _parse_logging(raw: dict[str, Any]) -> LoggingConfig:
         enabled=bool(raw.get("enabled", True)),
         file=str(raw.get("file", "logs/firewall.log")),
         level=str(raw.get("level", "warn")),
+        log_all_activity=bool(raw.get("log_all_activity", False)),
     )
 
 
@@ -241,6 +244,7 @@ def config_to_yaml(config: FirewallConfig) -> str:
             "enabled": config.logging.enabled,
             "file": config.logging.file,
             "level": config.logging.level,
+            "log_all_activity": config.logging.log_all_activity,
         },
     }
     return yaml.dump(data, default_flow_style=False, sort_keys=False)

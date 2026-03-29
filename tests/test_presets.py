@@ -26,6 +26,18 @@ def test_strict_preset():
     # Strict has more blocklist entries than standard
     std = get_preset("standard")
     assert len(cfg.commands.blocklist) > len(std.commands.blocklist)
+    # Strict enables log_all_activity
+    assert cfg.logging.log_all_activity is True
+
+
+def test_standard_preset_log_all_activity_off():
+    cfg = get_preset("standard")
+    assert cfg.logging.log_all_activity is False
+
+
+def test_permissive_preset_log_all_activity_off():
+    cfg = get_preset("permissive")
+    assert cfg.logging.log_all_activity is False
 
 
 def test_permissive_preset():

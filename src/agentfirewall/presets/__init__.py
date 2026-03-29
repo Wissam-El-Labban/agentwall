@@ -69,6 +69,7 @@ def _strict() -> FirewallConfig:
     config.commands.blocklist = list(_COMMON_BLOCKLIST) + list(_EXTRA_STRICT_BLOCKLIST)
     config.filesystem.deny_operations = list(DenyOperation)
     config.logging.level = "info"
+    config.logging.log_all_activity = True
     return config
 
 

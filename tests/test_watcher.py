@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from watchdog.events import FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirDeletedEvent
+from watchdog.events import FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirDeletedEvent
 
 from agentfirewall.engine import Engine, Verdict
 from agentfirewall.schema import DenyOperation, FirewallConfig, FilesystemConfig, SandboxConfig
@@ -135,6 +135,28 @@ class TestFirewallHandler:
             str(tmp_path / ".git" / "temp.txt"),
         )
         handler.on_moved(event)
+
+    def test_created_event_is_handled(self, tmp_path):
+        config = _make_config(sandbox_root=str(tmp_path))
+        engine = Engine(config)
+        handler = FirewallHandler(engine, tmp_path / ".agentfirewall")
+
+        event = FileCreatedEvent(str(tmp_path / "new_file.txt"))
+        handler.on_created(event)
+
+    def test_created_protected_path_triggers_deny(self, tmp_path):
+        config = FirewallConfig(
+            sandbox=SandboxConfig(root=str(tmp_path)),
+            filesystem=FilesystemConfig(
+                protected_paths=[".git/**"],
+                deny_operations=[DenyOperation.CREATE],
+            ),
+        )
+        engine = Engine(config)
+        handler = FirewallHandler(engine, tmp_path / ".agentfirewall")
+
+        event = FileCreatedEvent(str(tmp_path / ".git" / "newfile"))
+        handler.on_created(event)
 
 
 class TestFirewallObserver:

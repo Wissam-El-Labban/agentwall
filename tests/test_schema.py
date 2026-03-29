@@ -164,3 +164,41 @@ def test_minimal_config_defaults(tmp_path: Path):
     cfg = load_config(p)
     assert cfg.mode == FirewallMode.ENFORCE
     assert cfg.sandbox.root == "."
+
+
+def test_create_deny_operation():
+    """CREATE should be a valid DenyOperation."""
+    assert DenyOperation.CREATE.value == "create"
+    assert DenyOperation("create") == DenyOperation.CREATE
+
+
+def test_log_all_activity_default():
+    """log_all_activity should default to False."""
+    from agentfirewall.schema import LoggingConfig
+    cfg = LoggingConfig()
+    assert cfg.log_all_activity is False
+
+
+def test_log_all_activity_parsed(tmp_path: Path):
+    """log_all_activity should round-trip through YAML."""
+    af_dir = tmp_path / ".agentfirewall"
+    af_dir.mkdir()
+    p = af_dir / "config.yaml"
+    p.write_text("version: 1\nlogging:\n  log_all_activity: true\n")
+    cfg = load_config(p)
+    assert cfg.logging.log_all_activity is True
+
+
+def test_log_all_activity_roundtrip(tmp_path: Path):
+    """config_to_yaml should include log_all_activity."""
+    cfg = default_config()
+    cfg.logging.log_all_activity = True
+    yaml_text = config_to_yaml(cfg)
+    assert "log_all_activity: true" in yaml_text
+    # Reload and verify
+    af_dir = tmp_path / ".agentfirewall"
+    af_dir.mkdir()
+    p = af_dir / "config.yaml"
+    p.write_text(yaml_text)
+    cfg2 = load_config(p)
+    assert cfg2.logging.log_all_activity is True

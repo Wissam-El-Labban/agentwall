@@ -496,6 +496,7 @@ def _config_to_dict(config: FirewallConfig) -> dict:
             "enabled": config.logging.enabled,
             "file": config.logging.file,
             "level": config.logging.level,
+            "log_all_activity": config.logging.log_all_activity,
         },
     }
 
@@ -543,3 +544,5 @@ def _apply_config_changes(config: FirewallConfig, data: dict) -> None:
             config.logging.file = log["file"]
         if "level" in log:
             config.logging.level = log["level"]
+        if "log_all_activity" in log:
+            config.logging.log_all_activity = bool(log["log_all_activity"])

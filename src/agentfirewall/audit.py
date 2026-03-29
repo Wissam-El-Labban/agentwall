@@ -44,6 +44,7 @@ class AuditLogger:
             raise TypeError(f"Expected LoggingConfig, got {type(config).__name__}")
 
         self._enabled = config.enabled
+        self._log_all = config.log_all_activity
         self._logger = logging.getLogger("agentfirewall.audit")
         self._logger.handlers.clear()
         self._logger.propagate = False
@@ -95,3 +96,23 @@ class AuditLogger:
 
         level = _VERDICT_LEVEL.get(result.verdict.value, logging.WARNING)
         self._logger.log(level, entry)
+
+    def log_activity(
+        self,
+        action_type: str,
+        target: str,
+    ) -> None:
+        """Log an allowed activity (file creation, etc.) when log_all_activity is on."""
+        if not self._enabled or not self._log_all:
+            return
+
+        entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "action_type": action_type,
+            "target": target,
+            "verdict": "allow",
+            "rule": "activity_log",
+            "detail": f"Observed {action_type} activity",
+        }
+
+        self._logger.log(logging.INFO, entry)

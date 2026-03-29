@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import click
 from watchdog.events import (
+    FileCreatedEvent,
     FileDeletedEvent,
     FileModifiedEvent,
     FileMovedEvent,
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 
 # Map watchdog event types to DenyOperation
 _EVENT_TO_OP = {
+    FileCreatedEvent: DenyOperation.CREATE,
     FileDeletedEvent: DenyOperation.DELETE,
     FileModifiedEvent: DenyOperation.WRITE,
     FileMovedEvent: DenyOperation.MOVE_OUTSIDE_SANDBOX,
@@ -45,6 +47,10 @@ class FirewallHandler(FileSystemEventHandler):
         self._base_dir = str(base_dir.resolve())
         self._killer = process_killer
         self._watch_root = Path(engine.config.sandbox.root or ".").resolve()
+        self._audit = engine._audit
+
+    def on_created(self, event: FileSystemEvent) -> None:
+        self._handle(event)
 
     def on_deleted(self, event: FileSystemEvent) -> None:
         self._handle(event)
@@ -80,6 +86,10 @@ class FirewallHandler(FileSystemEventHandler):
             rel_path = path
 
         result = self._engine.evaluate_file_operation(operation, rel_path)
+
+        # Log all observed activity when log_all_activity is enabled
+        if result.verdict == Verdict.ALLOW and self._audit is not None:
+            self._audit.log_activity(operation.value, rel_path)
 
         if result.verdict in (Verdict.DENY, Verdict.WARN):
             symbol = "🚫" if result.verdict == Verdict.DENY else "⚠️ "

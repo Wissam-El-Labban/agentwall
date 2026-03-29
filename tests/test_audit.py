@@ -125,3 +125,55 @@ class TestAuditLogger:
         # Should be ISO format with UTC timezone
         assert "T" in ts
         assert ts.endswith("+00:00")
+
+
+class TestLogActivity:
+    """Tests for the log_activity method (log_all_activity feature)."""
+
+    def test_log_activity_when_enabled(self, base_dir):
+        config = LoggingConfig(enabled=True, file="logs/firewall.log", level="info", log_all_activity=True)
+        logger = AuditLogger(config, base_dir)
+
+        logger.log_activity("create", "new_file.txt")
+
+        log_file = base_dir / "logs" / "firewall.log"
+        assert log_file.exists()
+        entry = json.loads(log_file.read_text().strip())
+        assert entry["action_type"] == "create"
+        assert entry["target"] == "new_file.txt"
+        assert entry["verdict"] == "allow"
+        assert entry["rule"] == "activity_log"
+
+    def test_log_activity_disabled_by_default(self, base_dir):
+        config = LoggingConfig(enabled=True, file="logs/firewall.log", level="info")
+        logger = AuditLogger(config, base_dir)
+
+        logger.log_activity("create", "new_file.txt")
+
+        log_file = base_dir / "logs" / "firewall.log"
+        # File may exist from handler setup, but should have no content
+        if log_file.exists():
+            assert log_file.read_text().strip() == ""
+
+    def test_log_activity_skipped_when_logging_disabled(self, base_dir):
+        config = LoggingConfig(enabled=False, file="logs/firewall.log", level="info", log_all_activity=True)
+        logger = AuditLogger(config, base_dir)
+
+        logger.log_activity("create", "new_file.txt")
+
+        log_file = base_dir / "logs" / "firewall.log"
+        assert not log_file.exists()
+
+    def test_log_activity_mixed_with_decisions(self, base_dir):
+        config = LoggingConfig(enabled=True, file="logs/firewall.log", level="info", log_all_activity=True)
+        logger = AuditLogger(config, base_dir)
+
+        logger.log_decision("command", "rm -rf /", _make_result(Verdict.DENY))
+        logger.log_activity("create", "readme.md")
+
+        log_file = base_dir / "logs" / "firewall.log"
+        lines = log_file.read_text().strip().split("\n")
+        assert len(lines) == 2
+        assert json.loads(lines[0])["verdict"] == "deny"
+        assert json.loads(lines[1])["verdict"] == "allow"
+        assert json.loads(lines[1])["rule"] == "activity_log"
