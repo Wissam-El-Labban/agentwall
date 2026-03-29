@@ -14,8 +14,8 @@ __agentfirewall_preexec() {
     [[ "$BASH_COMMAND" == agentfirewall* ]] && return 0
     [[ "$BASH_COMMAND" == agentwall* ]] && return 0
     [[ "$BASH_COMMAND" == __agentfirewall_* ]] && return 0
-    [[ "$BASH_COMMAND" == source* ]] && return 0
-    [[ "$BASH_COMMAND" == .* ]] && return 0
+    [[ "$BASH_COMMAND" == "source "* ]] && return 0
+    [[ "$BASH_COMMAND" == ". "* ]] && return 0
     local __af_result
     __af_result=$(agentfirewall check "$BASH_COMMAND" 2>&1)
     local __af_exit=$?
