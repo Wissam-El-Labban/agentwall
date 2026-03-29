@@ -4,6 +4,42 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+<section class="status-section" id="status-section">
+    <h2>System Status</h2>
+    <div class="status-grid">
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-dot" id="watcher-dot"></span>
+                <strong>Watcher</strong>
+            </div>
+            <span class="status-detail" id="watcher-detail">Checking...</span>
+            <button class="btn btn-sm" id="watcher-toggle-btn" style="display:none">Start</button>
+        </div>
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-dot" id="hooks-dot"></span>
+                <strong>Shell Hooks</strong>
+            </div>
+            <span class="status-detail" id="hooks-detail">Checking...</span>
+            <button class="btn btn-sm" id="hooks-toggle-btn" style="display:none">Install</button>
+        </div>
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-dot" id="sandbox-dot"></span>
+                <strong>FUSE Sandbox</strong>
+            </div>
+            <span class="status-detail" id="sandbox-detail">Checking...</span>
+        </div>
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-dot status-dot-info"></span>
+                <strong>Config</strong>
+            </div>
+            <span class="status-detail" id="config-path-detail">Checking...</span>
+        </div>
+    </div>
+</section>
+
 <section class="mode-section">
     <h2>Firewall Mode</h2>
     <div class="mode-toggle" id="mode-toggle">
@@ -40,10 +76,56 @@
     </div>
 </section>
 
+<section class="tester-section">
+    <h2>Rule Tester</h2>
+    <div class="tester-tabs">
+        <button class="tester-tab active" data-tab="command">Command</button>
+        <button class="tester-tab" data-tab="file">File</button>
+        <button class="tester-tab" data-tab="network">Network</button>
+    </div>
+    <div class="tester-panels">
+        <div class="tester-panel active" id="panel-command">
+            <div class="tester-input-row">
+                <input type="text" id="test-command" placeholder='e.g. rm -rf /' class="tester-input">
+                <button class="btn btn-primary" id="test-command-btn">Test</button>
+            </div>
+        </div>
+        <div class="tester-panel" id="panel-file">
+            <div class="tester-input-row">
+                <input type="text" id="test-file-path" placeholder="e.g. .env" class="tester-input">
+                <select id="test-file-op">
+                    <option value="delete">delete</option>
+                    <option value="write">write</option>
+                    <option value="chmod">chmod</option>
+                    <option value="move_outside_sandbox">move_outside_sandbox</option>
+                </select>
+                <button class="btn btn-primary" id="test-file-btn">Test</button>
+            </div>
+        </div>
+        <div class="tester-panel" id="panel-network">
+            <div class="tester-input-row">
+                <input type="text" id="test-host" placeholder="e.g. evil.com" class="tester-input">
+                <button class="btn btn-primary" id="test-network-btn">Test</button>
+            </div>
+        </div>
+    </div>
+    <div class="tester-result" id="tester-result" style="display:none">
+        <span class="verdict-badge" id="tester-verdict"></span>
+        <div class="tester-detail">
+            <div><strong>Rule:</strong> <span id="tester-rule"></span></div>
+            <div><strong>Detail:</strong> <span id="tester-detail-text"></span></div>
+        </div>
+    </div>
+</section>
+
 <section class="agents-section">
     <h2>Detected Agents</h2>
     <div id="agents-panel">
-        <p class="muted">Agent discovery not yet available. Install the discovery module and run <code>agentfirewall scan</code>.</p>
+        <p class="muted" id="agents-loading">Scanning for agent processes...</p>
+        <table class="agent-table" id="agents-table" style="display:none">
+            <thead><tr><th>PID</th><th>Name</th><th>Command</th></tr></thead>
+            <tbody id="agents-body"></tbody>
+        </table>
     </div>
 </section>
 

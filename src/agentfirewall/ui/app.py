@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import signal
+import subprocess
+import sys
 import time
-from dataclasses import asdict
 from pathlib import Path
 from typing import Generator
 
@@ -13,14 +15,18 @@ from flask import Flask, Response, jsonify, render_template, request
 
 from agentfirewall.engine import Engine
 from agentfirewall.schema import (
+    CONFIG_FILENAME,
     ConfigError,
     DenyOperation,
+    DOTFILE_NAME,
     FirewallConfig,
     FirewallMode,
     config_to_yaml,
     find_config,
     load_config,
 )
+
+PID_FILENAME = "watcher.pid"
 
 
 def create_app(config_dir: Path | None = None) -> Flask:
@@ -148,9 +154,184 @@ def create_app(config_dir: Path | None = None) -> Flask:
 
     @app.route("/api/agents", methods=["GET"])
     def api_agents():
-        # Stubbed — Phase 3 (Agent Discovery) not yet implemented.
-        # Wire to discover_all() when Phase 3 lands.
-        return jsonify({"agents": [], "discovery_available": False})
+        from agentfirewall.process import ProcessKiller
+
+        try:
+            killer = ProcessKiller()
+            procs = killer.find_agent_processes()
+            agents = []
+            for proc in procs:
+                try:
+                    agents.append({
+                        "pid": proc.pid,
+                        "name": proc.name(),
+                        "cmdline": " ".join(proc.cmdline()[:6]),
+                    })
+                except Exception:
+                    continue
+            return jsonify({"agents": agents, "discovery_available": True})
+        except Exception:
+            return jsonify({"agents": [], "discovery_available": True})
+
+    @app.route("/api/status", methods=["GET"])
+    def api_status():
+        af_dir = app.config["AGENTFIREWALL_DIR"]
+        config = _load()
+
+        # Watcher status
+        watcher_status = {"running": False, "pid": None}
+        pid_file = af_dir / PID_FILENAME
+        if pid_file.exists():
+            try:
+                pid = int(pid_file.read_text(encoding="utf-8").strip())
+                os.kill(pid, 0)
+                watcher_status = {"running": True, "pid": pid}
+            except (ProcessLookupError, ValueError, OSError):
+                watcher_status = {"running": False, "pid": None}
+
+        # Sandbox status
+        sandbox_status = {"running": False, "pid": None}
+        sandbox_pid_file = af_dir / "sandbox.pid"
+        if sandbox_pid_file.exists():
+            try:
+                pid = int(sandbox_pid_file.read_text(encoding="utf-8").strip())
+                os.kill(pid, 0)
+                sandbox_status = {"running": True, "pid": pid}
+            except (ProcessLookupError, ValueError, OSError):
+                sandbox_status = {"running": False, "pid": None}
+
+        # Hooks status
+        from agentfirewall.hooks.shell import detect_shell, GUARD_BEGIN
+        shell_name = detect_shell()
+        rc_file = Path.home() / f".{shell_name}rc"
+        hooks_installed = False
+        if rc_file.exists():
+            hooks_installed = GUARD_BEGIN in rc_file.read_text(encoding="utf-8")
+
+        return jsonify({
+            "config_path": str(af_dir),
+            "mode": config.mode.value,
+            "watcher": watcher_status,
+            "sandbox": sandbox_status,
+            "hooks": {"installed": hooks_installed, "shell": shell_name, "rc_file": str(rc_file)},
+        })
+
+    @app.route("/api/check/command", methods=["POST"])
+    def api_check_command():
+        data = request.get_json()
+        if data is None or "command" not in data:
+            return jsonify({"error": "Request body must include 'command'"}), 400
+
+        config = _load()
+        engine = Engine(config)
+        result = engine.evaluate_command(data["command"])
+        return jsonify({
+            "verdict": result.verdict.value,
+            "rule": result.rule,
+            "detail": result.detail,
+            "blocked": result.blocked,
+        })
+
+    @app.route("/api/check/file", methods=["POST"])
+    def api_check_file():
+        data = request.get_json()
+        if data is None or "path" not in data or "operation" not in data:
+            return jsonify({"error": "Request body must include 'path' and 'operation'"}), 400
+
+        try:
+            op = DenyOperation(data["operation"])
+        except ValueError:
+            return jsonify({"error": f"Invalid operation: {data['operation']}"}), 400
+
+        config = _load()
+        engine = Engine(config)
+        result = engine.evaluate_file_operation(op, data["path"])
+        return jsonify({
+            "verdict": result.verdict.value,
+            "rule": result.rule,
+            "detail": result.detail,
+            "blocked": result.blocked,
+        })
+
+    @app.route("/api/check/network", methods=["POST"])
+    def api_check_network():
+        data = request.get_json()
+        if data is None or "host" not in data:
+            return jsonify({"error": "Request body must include 'host'"}), 400
+
+        config = _load()
+        engine = Engine(config)
+        result = engine.evaluate_network(data["host"])
+        return jsonify({
+            "verdict": result.verdict.value,
+            "rule": result.rule,
+            "detail": result.detail,
+            "blocked": result.blocked,
+        })
+
+    @app.route("/api/watcher", methods=["POST"])
+    def api_watcher():
+        data = request.get_json()
+        if data is None or "action" not in data:
+            return jsonify({"error": "Request body must include 'action'"}), 400
+
+        af_dir = app.config["AGENTFIREWALL_DIR"]
+        pid_file = af_dir / PID_FILENAME
+        action = data["action"]
+
+        if action == "start":
+            # Check if already running
+            if pid_file.exists():
+                try:
+                    pid = int(pid_file.read_text(encoding="utf-8").strip())
+                    os.kill(pid, 0)
+                    return jsonify({"status": "already_running", "pid": pid})
+                except (ProcessLookupError, ValueError, OSError):
+                    pid_file.unlink(missing_ok=True)
+
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "agentfirewall.cli", "watch"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=str(af_dir.parent),
+            )
+            pid_file.write_text(str(proc.pid), encoding="utf-8")
+            return jsonify({"status": "started", "pid": proc.pid})
+
+        elif action == "stop":
+            if not pid_file.exists():
+                return jsonify({"status": "not_running"})
+            try:
+                pid = int(pid_file.read_text(encoding="utf-8").strip())
+                os.kill(pid, signal.SIGTERM)
+                pid_file.unlink(missing_ok=True)
+                return jsonify({"status": "stopped", "pid": pid})
+            except (ProcessLookupError, ValueError, OSError):
+                pid_file.unlink(missing_ok=True)
+                return jsonify({"status": "not_running"})
+
+        return jsonify({"error": "action must be 'start' or 'stop'"}), 400
+
+    @app.route("/api/hooks", methods=["POST"])
+    def api_hooks():
+        from agentfirewall.hooks.shell import install_hook, uninstall_hook
+
+        data = request.get_json()
+        if data is None or "action" not in data:
+            return jsonify({"error": "Request body must include 'action'"}), 400
+
+        shell = data.get("shell")
+        action = data["action"]
+
+        if action == "install":
+            rc = install_hook(shell)
+            return jsonify({"installed": True, "rc_file": str(rc)})
+        elif action == "uninstall":
+            removed = uninstall_hook(shell)
+            return jsonify({"installed": not removed, "removed": removed})
+
+        return jsonify({"error": "action must be 'install' or 'uninstall'"}), 400
 
     return app
 

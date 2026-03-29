@@ -61,6 +61,191 @@
         });
     }
 
+    // ── Status panel (dashboard) ────────────────────────────
+
+    function loadStatus() {
+        fetch("/api/status")
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                // Watcher
+                var watcherDot = document.getElementById("watcher-dot");
+                var watcherDetail = document.getElementById("watcher-detail");
+                var watcherBtn = document.getElementById("watcher-toggle-btn");
+                if (watcherDot) {
+                    if (data.watcher.running) {
+                        watcherDot.className = "status-dot status-dot-running";
+                        watcherDetail.textContent = "Running (PID: " + data.watcher.pid + ")";
+                        watcherBtn.textContent = "Stop";
+                    } else {
+                        watcherDot.className = "status-dot status-dot-stopped";
+                        watcherDetail.textContent = "Stopped";
+                        watcherBtn.textContent = "Start";
+                    }
+                    watcherBtn.style.display = "";
+                    watcherBtn.dataset.running = data.watcher.running ? "1" : "0";
+                }
+
+                // Hooks
+                var hooksDot = document.getElementById("hooks-dot");
+                var hooksDetail = document.getElementById("hooks-detail");
+                var hooksBtn = document.getElementById("hooks-toggle-btn");
+                if (hooksDot) {
+                    if (data.hooks.installed) {
+                        hooksDot.className = "status-dot status-dot-running";
+                        hooksDetail.textContent = "Installed (" + data.hooks.shell + ")";
+                        hooksBtn.textContent = "Uninstall";
+                    } else {
+                        hooksDot.className = "status-dot status-dot-stopped";
+                        hooksDetail.textContent = "Not installed";
+                        hooksBtn.textContent = "Install";
+                    }
+                    hooksBtn.style.display = "";
+                    hooksBtn.dataset.installed = data.hooks.installed ? "1" : "0";
+                }
+
+                // Sandbox
+                var sandboxDot = document.getElementById("sandbox-dot");
+                var sandboxDetail = document.getElementById("sandbox-detail");
+                if (sandboxDot) {
+                    if (data.sandbox.running) {
+                        sandboxDot.className = "status-dot status-dot-running";
+                        sandboxDetail.textContent = "Running (PID: " + data.sandbox.pid + ")";
+                    } else {
+                        sandboxDot.className = "status-dot status-dot-stopped";
+                        sandboxDetail.textContent = "Not running";
+                    }
+                }
+
+                // Config path
+                var configDetail = document.getElementById("config-path-detail");
+                if (configDetail) configDetail.textContent = data.config_path;
+            })
+            .catch(function () {});
+    }
+
+    if (document.getElementById("status-section")) {
+        loadStatus();
+
+        // Watcher toggle
+        var watcherBtn = document.getElementById("watcher-toggle-btn");
+        if (watcherBtn) {
+            watcherBtn.addEventListener("click", function () {
+                var action = watcherBtn.dataset.running === "1" ? "stop" : "start";
+                watcherBtn.disabled = true;
+                apiCall("POST", "/api/watcher", { action: action }).then(function () {
+                    loadStatus();
+                    watcherBtn.disabled = false;
+                }).catch(function () { watcherBtn.disabled = false; });
+            });
+        }
+
+        // Hooks toggle
+        var hooksBtn = document.getElementById("hooks-toggle-btn");
+        if (hooksBtn) {
+            hooksBtn.addEventListener("click", function () {
+                var action = hooksBtn.dataset.installed === "1" ? "uninstall" : "install";
+                hooksBtn.disabled = true;
+                apiCall("POST", "/api/hooks", { action: action }).then(function () {
+                    loadStatus();
+                    hooksBtn.disabled = false;
+                }).catch(function () { hooksBtn.disabled = false; });
+            });
+        }
+    }
+
+    // ── Rule tester (dashboard) ─────────────────────────────
+
+    var testerTabs = document.querySelectorAll(".tester-tab");
+    if (testerTabs.length > 0) {
+        testerTabs.forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                testerTabs.forEach(function (t) { t.classList.remove("active"); });
+                tab.classList.add("active");
+                document.querySelectorAll(".tester-panel").forEach(function (p) { p.classList.remove("active"); });
+                var panel = document.getElementById("panel-" + tab.dataset.tab);
+                if (panel) panel.classList.add("active");
+            });
+        });
+
+        function showTesterResult(data) {
+            var resultDiv = document.getElementById("tester-result");
+            var badge = document.getElementById("tester-verdict");
+            var rule = document.getElementById("tester-rule");
+            var detail = document.getElementById("tester-detail-text");
+            if (!resultDiv) return;
+            badge.textContent = data.verdict.toUpperCase();
+            badge.className = "verdict-badge verdict-" + data.verdict;
+            rule.textContent = data.rule;
+            detail.textContent = data.detail;
+            resultDiv.style.display = "";
+        }
+
+        var testCmdBtn = document.getElementById("test-command-btn");
+        if (testCmdBtn) {
+            testCmdBtn.addEventListener("click", function () {
+                var input = document.getElementById("test-command");
+                if (!input || !input.value.trim()) return;
+                apiCall("POST", "/api/check/command", { command: input.value.trim() }).then(showTesterResult);
+            });
+        }
+
+        var testFileBtn = document.getElementById("test-file-btn");
+        if (testFileBtn) {
+            testFileBtn.addEventListener("click", function () {
+                var pathInput = document.getElementById("test-file-path");
+                var opSelect = document.getElementById("test-file-op");
+                if (!pathInput || !pathInput.value.trim()) return;
+                apiCall("POST", "/api/check/file", {
+                    path: pathInput.value.trim(),
+                    operation: opSelect.value,
+                }).then(showTesterResult);
+            });
+        }
+
+        var testNetBtn = document.getElementById("test-network-btn");
+        if (testNetBtn) {
+            testNetBtn.addEventListener("click", function () {
+                var input = document.getElementById("test-host");
+                if (!input || !input.value.trim()) return;
+                apiCall("POST", "/api/check/network", { host: input.value.trim() }).then(showTesterResult);
+            });
+        }
+    }
+
+    // ── Agents panel (dashboard) ────────────────────────────
+
+    var agentsPanel = document.getElementById("agents-panel");
+    if (agentsPanel) {
+        fetch("/api/agents")
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                var loading = document.getElementById("agents-loading");
+                var table = document.getElementById("agents-table");
+                var body = document.getElementById("agents-body");
+                if (!loading || !table || !body) return;
+
+                if (data.agents.length === 0) {
+                    loading.textContent = "No agent processes detected.";
+                    return;
+                }
+
+                loading.style.display = "none";
+                table.style.display = "";
+                data.agents.forEach(function (agent) {
+                    var tr = document.createElement("tr");
+                    tr.innerHTML =
+                        "<td>" + agent.pid + "</td>" +
+                        "<td>" + escapeHtml(agent.name) + "</td>" +
+                        "<td>" + escapeHtml(agent.cmdline) + "</td>";
+                    body.appendChild(tr);
+                });
+            })
+            .catch(function () {
+                var loading = document.getElementById("agents-loading");
+                if (loading) loading.textContent = "Could not scan for agents.";
+            });
+    }
+
     // ── Config form ─────────────────────────────────────────
 
     var configForm = document.getElementById("config-form");

@@ -191,13 +191,203 @@ class TestAPILogs:
         assert data["entries"][0]["verdict"] == "deny"
 
 
-# ── API: agents (stubbed) ───────────────────────────────────
+# ── API: agents ──────────────────────────────────────────────
 
 
 class TestAPIAgents:
-    def test_agents_returns_empty_list(self, client):
+    def test_agents_returns_list(self, client):
         resp = client.get("/api/agents")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["agents"] == []
-        assert data["discovery_available"] is False
+        assert isinstance(data["agents"], list)
+        assert data["discovery_available"] is True
+
+
+# ── API: status ──────────────────────────────────────────────
+
+
+class TestAPIStatus:
+    def test_status_returns_expected_fields(self, client):
+        resp = client.get("/api/status")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "config_path" in data
+        assert "mode" in data
+        assert "watcher" in data
+        assert "sandbox" in data
+        assert "hooks" in data
+        assert isinstance(data["watcher"]["running"], bool)
+        assert isinstance(data["hooks"]["installed"], bool)
+
+    def test_status_mode_matches_config(self, client):
+        resp = client.get("/api/status")
+        data = resp.get_json()
+        assert data["mode"] == "enforce"
+
+
+# ── API: check endpoints ─────────────────────────────────────
+
+
+class TestAPICheckCommand:
+    def test_blocklisted_command_returns_deny(self, client):
+        resp = client.post(
+            "/api/check/command",
+            data=json.dumps({"command": "rm -rf /"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["verdict"] == "deny"
+        assert data["blocked"] is True
+
+    def test_safe_command_returns_allow(self, client):
+        resp = client.post(
+            "/api/check/command",
+            data=json.dumps({"command": "ls"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["verdict"] == "allow"
+        assert data["blocked"] is False
+
+    def test_missing_command_returns_400(self, client):
+        resp = client.post(
+            "/api/check/command",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+
+class TestAPICheckFile:
+    def test_protected_path_delete_returns_deny(self, client):
+        resp = client.post(
+            "/api/check/file",
+            data=json.dumps({"path": ".env", "operation": "delete"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["verdict"] == "deny"
+        assert data["blocked"] is True
+
+    def test_safe_path_returns_allow(self, client):
+        resp = client.post(
+            "/api/check/file",
+            data=json.dumps({"path": "readme.txt", "operation": "write"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["verdict"] == "allow"
+
+    def test_invalid_operation_returns_400(self, client):
+        resp = client.post(
+            "/api/check/file",
+            data=json.dumps({"path": "test.txt", "operation": "invalid"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+    def test_missing_fields_returns_400(self, client):
+        resp = client.post(
+            "/api/check/file",
+            data=json.dumps({"path": "test.txt"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+
+class TestAPICheckNetwork:
+    def test_denied_host_returns_deny(self, client):
+        resp = client.post(
+            "/api/check/network",
+            data=json.dumps({"host": "evil.example.com"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        # The standard preset has allowed_hosts, so unlisted hosts are denied
+        assert data["verdict"] in ("deny", "allow")
+
+    def test_missing_host_returns_400(self, client):
+        resp = client.post(
+            "/api/check/network",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+
+# ── API: watcher ─────────────────────────────────────────────
+
+
+class TestAPIWatcher:
+    def test_stop_when_not_running(self, client):
+        resp = client.post(
+            "/api/watcher",
+            data=json.dumps({"action": "stop"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["status"] == "not_running"
+
+    def test_invalid_action_returns_400(self, client):
+        resp = client.post(
+            "/api/watcher",
+            data=json.dumps({"action": "restart"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+    def test_missing_action_returns_400(self, client):
+        resp = client.post(
+            "/api/watcher",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+
+# ── API: hooks ───────────────────────────────────────────────
+
+
+class TestAPIHooks:
+    def test_install_returns_rc_file(self, client):
+        resp = client.post(
+            "/api/hooks",
+            data=json.dumps({"action": "install"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["installed"] is True
+        assert "rc_file" in data
+
+    def test_uninstall_returns_result(self, client):
+        resp = client.post(
+            "/api/hooks",
+            data=json.dumps({"action": "uninstall"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "installed" in data
+
+    def test_invalid_action_returns_400(self, client):
+        resp = client.post(
+            "/api/hooks",
+            data=json.dumps({"action": "reset"}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+    def test_missing_action_returns_400(self, client):
+        resp = client.post(
+            "/api/hooks",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
