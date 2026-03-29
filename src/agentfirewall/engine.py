@@ -39,9 +39,10 @@ class RuleResult:
 class Engine:
     """Evaluates actions against a loaded FirewallConfig."""
 
-    def __init__(self, config: FirewallConfig, audit: AuditLogger | None = None) -> None:
+    def __init__(self, config: FirewallConfig, audit: AuditLogger | None = None, ai: bool = False) -> None:
         self.config = config
         self._audit = audit
+        self._ai = ai
         self._blocklist_patterns = [
             self._compile_command_pattern(p) for p in config.commands.blocklist
         ]
@@ -80,6 +81,21 @@ class Engine:
                 )
                 self._log("command", command, result)
                 return result
+
+        # 3. AI fallback (if enabled)
+        if self._ai:
+            from agentfirewall.ai_evaluator import evaluate_with_ai
+            ai_result = evaluate_with_ai(command, api_key=self.config.ai_api_key or None)
+            if ai_result is not None:
+                dangerous, reason = ai_result
+                if dangerous:
+                    result = self._make_result(
+                        Verdict.DENY,
+                        "ai_evaluator",
+                        f"AI flagged as dangerous: {reason}",
+                    )
+                    self._log("command", command, result)
+                    return result
 
         result = RuleResult(Verdict.ALLOW, "default", "No rules matched")
         self._log("command", command, result)

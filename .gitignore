@@ -3,3 +3,6 @@ __pycache__/
 
 # ignore the virtual environemt (calling it security-env for now)
 security-env
+
+# agentfirewall config (may contain API keys)
+.agentfirewall/

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentwall"
-version = "0.2.1"
+version = "0.3.6"
 description = "A dotfile-driven firewall that protects the OS from destructive LLM agent tool calls"
 readme = "docs/README.md"
 requires-python = ">=3.10"
@@ -32,6 +32,7 @@ dependencies = [
     "click>=8.0",
     "watchdog>=3.0",
     "psutil>=5.9",
+    "anthropic>=0.40",
 ]
 
 [project.optional-dependencies]

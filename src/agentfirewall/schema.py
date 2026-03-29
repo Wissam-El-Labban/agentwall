@@ -76,6 +76,7 @@ class FirewallConfig:
     commands: CommandsConfig = field(default_factory=CommandsConfig)
     network: NetworkConfig = field(default_factory=NetworkConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    ai_api_key: str = ""
 
 
 DOTFILE_NAME = ".agentfirewall"
@@ -180,6 +181,7 @@ def load_config(path: str | Path) -> FirewallConfig:
         commands=_parse_commands(raw.get("commands", {})),
         network=_parse_network(raw.get("network", {})),
         logging=_parse_logging(raw.get("logging", {})),
+        ai_api_key=str(raw.get("ai_api_key", "")),
     )
 
 
@@ -243,4 +245,6 @@ def config_to_yaml(config: FirewallConfig) -> str:
             "level": config.logging.level,
         },
     }
+    if config.ai_api_key:
+        data["ai_api_key"] = config.ai_api_key
     return yaml.dump(data, default_flow_style=False, sort_keys=False)

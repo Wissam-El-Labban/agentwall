@@ -52,7 +52,7 @@ def _standard() -> FirewallConfig:
         sandbox=SandboxConfig(root=".", allow_escape=False),
         filesystem=FilesystemConfig(
             protected_paths=[".agentfirewall/**", ".git/**", ".env", ".ssh/**", "/etc/**"],
-            deny_operations=[DenyOperation.DELETE, DenyOperation.MOVE_OUTSIDE_SANDBOX],
+            deny_operations=[DenyOperation.DELETE, DenyOperation.WRITE, DenyOperation.MOVE_OUTSIDE_SANDBOX],
         ),
         commands=CommandsConfig(blocklist=list(_COMMON_BLOCKLIST)),
         network=NetworkConfig(

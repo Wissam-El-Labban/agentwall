@@ -18,6 +18,8 @@ __agentfirewall_preexec() {
     [[ "$BASH_COMMAND" == __agentfirewall_* ]] && return 0
     agentfirewall check "$BASH_COMMAND" > /dev/null 2>&1
     local rc=$?
+    # Only block on exit code 1 (explicitly denied)
+    # Exit 0=allow, 2=no config, other=error — all treated as allow
     if [ $rc -eq 1 ]; then
         echo "[agentfirewall] BLOCKED: $BASH_COMMAND" >&2
         return 1
