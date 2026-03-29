@@ -2,19 +2,27 @@
 (function () {
     "use strict";
 
-    var COLORS = {
-        allow: "#51cf66",
-        deny: "#ff6b6b",
-        warn: "#fcc419",
-        primary: "#6c5ce7",
-        muted: "#6b7280",
-        command: "#6c5ce7",
-        file: "#00cec9",
-        network: "#fcc419",
+    var DARK_COLORS = {
+        allow: "#51cf66", deny: "#ff6b6b", warn: "#fcc419",
+        primary: "#6c5ce7", muted: "#6b7280",
+        command: "#6c5ce7", file: "#00cec9", network: "#fcc419",
+        text: "#eaedf3", grid: "rgba(255, 255, 255, 0.05)",
+    };
+    var LIGHT_COLORS = {
+        allow: "#16a34a", deny: "#dc2626", warn: "#d97706",
+        primary: "#6c5ce7", muted: "#9ca3af",
+        command: "#6c5ce7", file: "#0891b2", network: "#d97706",
+        text: "#1f2937", grid: "rgba(0, 0, 0, 0.06)",
     };
 
-    var CHART_TEXT = "#eaedf3";
-    var CHART_GRID = "rgba(255, 255, 255, 0.05)";
+    function getThemeColors() {
+        var isLight = document.documentElement.getAttribute("data-theme") === "light";
+        return isLight ? LIGHT_COLORS : DARK_COLORS;
+    }
+
+    var COLORS = getThemeColors();
+    var CHART_TEXT = COLORS.text;
+    var CHART_GRID = COLORS.grid;
 
     var charts = {};
 
@@ -251,5 +259,13 @@
         if (rangeSelect) {
             rangeSelect.addEventListener("change", loadAnalytics);
         }
+
+        // Re-render charts when theme changes
+        window.addEventListener("theme-changed", function () {
+            COLORS = getThemeColors();
+            CHART_TEXT = COLORS.text;
+            CHART_GRID = COLORS.grid;
+            loadAnalytics();
+        });
     }
 })();

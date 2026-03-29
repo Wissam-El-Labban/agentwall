@@ -33,6 +33,36 @@
     --sidebar-width: 72px;
 }
 
+/* ── Light theme ──────────────────────────────────────────── */
+
+[data-theme="light"] {
+    --bg: #f4f5f7;
+    --bg-surface: #eaecf0;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --bg-card-solid: #ffffff;
+    --bg-inset: rgba(243, 244, 246, 0.95);
+    --bg-hover: rgba(229, 231, 235, 0.9);
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --text-dim: #9ca3af;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-subtle: rgba(0, 0, 0, 0.04);
+    --primary: #6c5ce7;
+    --primary-glow: rgba(108, 92, 231, 0.15);
+    --primary-hover: #5a4bd6;
+    --accent: #0891b2;
+    --accent-glow: rgba(8, 145, 178, 0.1);
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --success: #16a34a;
+    --warning: #d97706;
+    --badge-allow: #16a34a;
+    --badge-deny: #dc2626;
+    --badge-warn: #d97706;
+    --shadow: 0 1px 8px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -141,6 +171,47 @@ body {
 
 .sidebar-nav a:hover .nav-tooltip {
     display: block;
+}
+
+/* ── Theme toggle ────────────────────────────────────────── */
+
+.theme-toggle {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    margin-top: auto;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+.theme-toggle:hover .nav-tooltip {
+    display: block;
+}
+
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon { display: none; }
+
+[data-theme="light"] .theme-toggle .icon-moon { display: block; }
+[data-theme="light"] .theme-toggle .icon-sun  { display: none; }
+:root .theme-toggle .icon-sun  { display: block; }
+:root .theme-toggle .icon-moon { display: none; }
+[data-theme="light"] .sidebar {
+    background: var(--bg-card);
+    border-right-color: var(--border);
 }
 
 /* ── Main content ────────────────────────────────────────── */
