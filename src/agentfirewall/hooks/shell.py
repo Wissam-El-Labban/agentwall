@@ -10,14 +10,13 @@ GUARD_END = "# <<< agentfirewall <<<"
 
 _BASH_HOOK = """\
 # >>> agentfirewall >>>
+__agentfirewall_active=0
 __agentfirewall_preexec() {
+    [ "$__agentfirewall_active" -eq 0 ] && return 0
     [[ "$BASH_COMMAND" == agentfirewall* ]] && return 0
     [[ "$BASH_COMMAND" == agentwall* ]] && return 0
     [[ "$BASH_COMMAND" == __agentfirewall_* ]] && return 0
-    [[ "$BASH_COMMAND" == "source "* ]] && return 0
-    [[ "$BASH_COMMAND" == ". "* ]] && return 0
-    local __af_result
-    __af_result=$(agentfirewall check "$BASH_COMMAND" 2>&1)
+    agentfirewall check "$BASH_COMMAND" > /dev/null 2>&1
     local __af_exit=$?
     [ $__af_exit -eq 2 ] && return 0
     if [ $__af_exit -ne 0 ]; then
@@ -25,14 +24,10 @@ __agentfirewall_preexec() {
         return 1
     fi
 }
-__agentfirewall_activate() {
-    shopt -s extdebug
-    trap '__agentfirewall_preexec' DEBUG
-    # Only run once, then remove self from PROMPT_COMMAND
-    PROMPT_COMMAND="${PROMPT_COMMAND/__agentfirewall_activate;/}"
-}
-# Defer activation: append to PROMPT_COMMAND so it runs after all init (pyenv, etc.)
-PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}__agentfirewall_activate;"
+shopt -s extdebug
+trap '__agentfirewall_preexec' DEBUG
+__agentfirewall_prompt() { __agentfirewall_active=1; }
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}__agentfirewall_prompt;"
 # <<< agentfirewall <<<
 """
 
